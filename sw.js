@@ -71,8 +71,23 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(event.request.url);
   
-  // عدم التدخل مع بعض أنواع الطلبات المحددة
-  if (url.pathname === '/robots.txt' || url.pathname === '/sitemap.xml') {
+  // عدم التدخل مع بعض أنواع الطلبات المحددة - خاصة للملفات الخاصة بالروبوتات وأي ملفات XML تشبه RSS
+  if (
+    url.pathname === '/robots.txt' || 
+    url.pathname === '/sitemap.xml' || 
+    url.pathname.endsWith('.xml') || 
+    url.pathname.endsWith('/feed') || 
+    url.pathname.includes('/rss') || 
+    url.pathname.includes('/feed')
+  ) {
+    return;
+  }
+
+  // عدم التدخل مع inject-root-bundle.js أو أي ملفات تتعلق بـ RSS
+  if (
+    url.pathname.includes('inject-root-bundle.js') || 
+    url.pathname.includes('RSS_Basic_Detect.js')
+  ) {
     return;
   }
 
@@ -92,6 +107,14 @@ self.addEventListener('fetch', event => {
     const absoluteCacheUrl = new URL(cacheUrl, self.location.origin).href;
     return absoluteCacheUrl === event.request.url;
   });
+  
+  // تجاهل التعامل مع أي طلب يحتوي على "contentType" في المسار أو البارامترات
+  if (
+    url.pathname.includes('contentType') || 
+    url.search.includes('contentType')
+  ) {
+    return;
+  }
 
   // تعامل مع الطلبات التي هي من نفس النطاق أو مدرجة في قائمة الكاش
   if (isSameOrigin || isInCacheList) {
@@ -104,25 +127,39 @@ self.addEventListener('fetch', event => {
           }
 
           // إذا لم يكن موجودًا في الـ Cache، فسنقوم بجلبه من الشبكة
-          return fetch(event.request)
+          return fetch(event.request.clone())
             .then(networkResponse => {
               // التحقق من أن الاستجابة صالحة
               if (!networkResponse || networkResponse.status !== 200) {
                 return networkResponse;
               }
 
-              // نسخ الاستجابة لأن الـ body يمكن استخدامه مرة واحدة فقط
-              const responseToCache = networkResponse.clone();
+              try {
+                // نسخ الاستجابة لأن الـ body يمكن استخدامه مرة واحدة فقط
+                const responseToCache = networkResponse.clone();
 
-              // تخزين في الكاش فقط للطلبات من نفس الأصل أو المحددة في قائمة الكاش
-              if (isSameOrigin || isInCacheList) {
-                caches.open(CACHE_NAME)
-                  .then(cache => {
-                    cache.put(event.request, responseToCache);
-                  })
-                  .catch(error => {
-                    console.error('خطأ في تخزين الاستجابة في الكاش:', error);
-                  });
+                // تخزين في الكاش فقط للطلبات من نفس الأصل أو المحددة في قائمة الكاش
+                // تأكد من أن الاستجابة تحتوي على نوع محتوى يمكن تخزينه
+                const contentType = networkResponse.headers.get('content-type');
+                const isTextOrDataResponse = !contentType || 
+                  contentType.includes('text/') || 
+                  contentType.includes('application/javascript') || 
+                  contentType.includes('application/json') || 
+                  contentType.includes('image/') || 
+                  contentType.includes('font/') || 
+                  contentType.includes('application/font');
+
+                if ((isSameOrigin || isInCacheList) && isTextOrDataResponse) {
+                  caches.open(CACHE_NAME)
+                    .then(cache => {
+                      cache.put(event.request, responseToCache);
+                    })
+                    .catch(error => {
+                      console.error('خطأ في تخزين الاستجابة في الكاش:', error);
+                    });
+                }
+              } catch (error) {
+                console.error('حدث خطأ أثناء معالجة الاستجابة:', error);
               }
 
               return networkResponse;
