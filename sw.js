@@ -5,8 +5,18 @@ const CORE = [
   '/',
   '/index.html',
   '/assets/bootstrap/css/bootstrap.min.css',
+  '/assets/bootstrap/js/bootstrap.min.js',
   '/assets/css/bs-theme-overrides.css',
-  '/assets/js/script.js'
+  '/assets/img/apple-touch-icon.png',
+  '/assets/img/favicon-16x16.png',
+  '/assets/img/favicon-16x16-dark.png',
+  '/assets/img/favicon-32x32.png',
+  '/assets/img/favicon-32x32-dark.png',
+  '/assets/img/android-chrome-192x192.png',
+  '/assets/img/android-chrome-512x512.png',
+  '/manifest.json',
+  '/robots.txt',
+  '/sitemap.xml'
 ];
 
 // تثبيت
