@@ -1,143 +1,76 @@
-// إصدار الكاش، يمكنك تغييره عند تحديث موقعك
-const CACHE_NAME = 'ai8v-cache-v2';
+const CACHE = 'ai8v-v1';
 
-// قائمة الملفات التي ترغب في تخزينها محلياً
-const urlsToCache = [
+// القائمة الأساسية للملفات
+const CORE = [
   '/',
   '/index.html',
   '/assets/bootstrap/css/bootstrap.min.css',
   '/assets/css/bs-theme-overrides.css',
-  '/assets/js/script.js',
-  '/assets/img/apple-touch-icon.png',
-  '/assets/img/favicon-16x16.png',
-  '/assets/img/favicon-16x16-dark.png',
-  '/assets/img/favicon-32x32.png',
-  '/assets/img/favicon-32x32-dark.png',
-  '/assets/img/android-chrome-192x192.png',
-  '/assets/img/android-chrome-512x512.png',
-  'https://fonts.googleapis.com/css?family=Amiri&display=swap',
-  'https://fonts.googleapis.com/css?family=Noto+Sans+Arabic&display=swap'
+  '/assets/js/script.js'
 ];
 
-// تثبيت Service Worker وتخزين الملفات
-self.addEventListener('install', event => {
-  // تنفيذ عملية التثبيت بشكل فوري ودون انتظار
+// تثبيت
+self.addEventListener('install', e => {
   self.skipWaiting();
-  
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('تم فتح الكاش بنجاح');
-        return cache.addAll(urlsToCache).catch(err => {
-          console.error('خطأ في تخزين بعض الملفات:', err);
-          // الاستمرار في تخزين ما أمكن من الملفات
-        });
-      })
-  );
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)));
 });
 
-// استراتيجية خدمة الطلبات: محاولة الكاش أولاً، ثم الشبكة (Cache First)
-self.addEventListener('fetch', event => {
-  // تجاهل طلبات POST وطلبات مختلفة النطاق
-  if (event.request.method !== 'GET') {
-    return;
-  }
-
-  // فحص إذا كان الطلب لموقع خارجي (مثل الخطوط من Google)
-  const url = new URL(event.request.url);
-  const isExternal = url.origin !== location.origin && 
-                     !url.hostname.includes('fonts.googleapis.com') && 
-                     !url.hostname.includes('fonts.gstatic.com');
-
-  // لا نخزن الطلبات الخارجية باستثناء Google Fonts
-  if (isExternal) {
-    event.respondWith(fetch(event.request));
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request)
-      .then(cachedResponse => {
-        // إذا وجد استجابة في الكاش، قم بإرجاعها
-        if (cachedResponse) {
-          // في الخلفية، قم بتحديث النسخة المخزنة إذا أمكن
-          // هذا يعمل على استراتيجية "stale-while-revalidate"
-          const fetchPromise = fetch(event.request)
-            .then(networkResponse => {
-              if (networkResponse && networkResponse.status === 200) {
-                const responseToCache = networkResponse.clone();
-                caches.open(CACHE_NAME)
-                  .then(cache => {
-                    cache.put(event.request, responseToCache);
-                  })
-                  .catch(err => console.error('خطأ في تحديث الكاش:', err));
-              }
-              return networkResponse;
-            })
-            .catch(() => {
-              // فشل الاتصال بالشبكة، الاستمرار بالنسخة المخزنة
-            });
-          
-          return cachedResponse;
-        }
-        
-        // إذا لم تجد في الكاش، اذهب للشبكة
-        return fetch(event.request)
-          .then(response => {
-            // تخزين في الكاش فقط إذا كان طلب GET وناجح
-            if (!response || response.status !== 200) {
-              return response;
-            }
-
-            // تخزين نسخة في الكاش
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
-              })
-              .catch(err => console.error('خطأ في تخزين الاستجابة:', err));
-
-            return response;
-          })
-          .catch(error => {
-            console.error('فشل جلب البيانات من الشبكة:', error);
-            
-            // إذا كان الطلب لصفحة HTML، ارجع الصفحة الرئيسية
-            if (event.request.headers.get('accept').includes('text/html')) {
-              return caches.match('/index.html');
-            }
-            
-            // إذا فشل كل شيء، ارجع خطأ
-            return new Response('حدث خطأ في الاتصال بالشبكة', {
-              status: 503,
-              statusText: 'خدمة غير متاحة',
-              headers: new Headers({
-                'Content-Type': 'text/plain'
-              })
-            });
-          });
-      })
-  );
-});
-
-// تحديث الكاش عند تحديث Service Worker
-self.addEventListener('activate', event => {
-  // السيطرة على العميل فوراً
+// تنشيط
+self.addEventListener('activate', e => {
   self.clients.claim();
+  e.waitUntil(caches.keys().then(keys => 
+    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+  ));
+});
+
+// إضافة رأس لمنع مشكلة RSS Detection
+const addContentTypeHeader = response => {
+  // إذا لم تكن هناك استجابة أو كانت غير قابلة للتعديل
+  if (!response || !response.headers || response.type !== 'basic') return response;
   
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            // حذف الكاش القديم
-            console.log('حذف الكاش القديم:', cacheName);
-            return caches.delete(cacheName);
+  // إنشاء نسخة من الاستجابة مع رأس جديد
+  const newHeaders = new Headers(response.headers);
+  if (!newHeaders.has('Content-Type')) {
+    // تعيين نوع المحتوى للمستندات HTML
+    if (response.url.endsWith('.html') || response.url === '/' || response.url.endsWith('/')) {
+      newHeaders.set('Content-Type', 'text/html; charset=utf-8');
+    }
+  }
+  
+  return response.clone ? new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: newHeaders
+  }) : response;
+};
+
+// تعامل مع الطلبات
+self.addEventListener('fetch', e => {
+  // فقط طلبات GET
+  if (e.request.method !== 'GET') return;
+
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      // إرجاع المُخزن إذا وُجد
+      if (cached) return addContentTypeHeader(cached);
+      
+      // محاولة الحصول من الشبكة
+      return fetch(e.request)
+        .then(response => {
+          // تخزين النسخة الجديدة إذا كانت صالحة
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE).then(cache => cache.put(e.request, copy));
           }
-          return null;
-        }).filter(Boolean)
-      );
+          return addContentTypeHeader(response);
+        })
+        .catch(() => {
+          // إذا فشل ورُطب صفحة HTML، نُرجع صفحة البداية
+          if (e.request.headers.get('accept').includes('text/html')) {
+            return caches.match('/');
+          }
+          return new Response('غير متصل', {status: 503});
+        });
     })
   );
 });
