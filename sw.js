@@ -1,22 +1,22 @@
 // إصدار الكاش، يمكنك تغييره عند تحديث موقعك
-const CACHE_NAME = 'ai8v-cache-v1';
+const CACHE_NAME = 'ai8v-cache-v2';
 
 // قائمة الملفات التي ترغب في تخزينها محلياً
 const urlsToCache = [
   '/',
   '/index.html',
-  '/thank-you.html',
   '/assets/bootstrap/css/bootstrap.min.css',
-  '/assets/css/style.css',
-  '/assets/fonts/fontawesome-all.min.css',
+  '/assets/css/bs-theme-overrides.css',
+  '/assets/js/script.js',
   '/assets/img/apple-touch-icon.png',
   '/assets/img/favicon-16x16.png',
-  '/assets/img/favicon-16x16-Dark.png',
+  '/assets/img/favicon-16x16-dark.png',
   '/assets/img/favicon-32x32.png',
-  '/assets/img/favicon-32x32-Dark.png',
+  '/assets/img/favicon-32x32-dark.png',
   '/assets/img/android-chrome-192x192.png',
   '/assets/img/android-chrome-512x512.png',
-  // أضف هنا أي ملفات إضافية ترغب في تخزينها مسبقاً
+  'https://fonts.googleapis.com/css?family=Amiri&display=swap',
+  'https://fonts.googleapis.com/css?family=Noto+Sans+Arabic&display=swap'
 ];
 
 // تثبيت Service Worker وتخزين الملفات
@@ -28,21 +28,56 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('تم فتح الكاش بنجاح');
-        return cache.addAll(urlsToCache);
-      })
-      .catch(error => {
-        console.error('فشل في تخزين الملفات في الكاش:', error);
+        return cache.addAll(urlsToCache).catch(err => {
+          console.error('خطأ في تخزين بعض الملفات:', err);
+          // الاستمرار في تخزين ما أمكن من الملفات
+        });
       })
   );
 });
 
 // استراتيجية خدمة الطلبات: محاولة الكاش أولاً، ثم الشبكة (Cache First)
 self.addEventListener('fetch', event => {
+  // تجاهل طلبات POST وطلبات مختلفة النطاق
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // فحص إذا كان الطلب لموقع خارجي (مثل الخطوط من Google)
+  const url = new URL(event.request.url);
+  const isExternal = url.origin !== location.origin && 
+                     !url.hostname.includes('fonts.googleapis.com') && 
+                     !url.hostname.includes('fonts.gstatic.com');
+
+  // لا نخزن الطلبات الخارجية باستثناء Google Fonts
+  if (isExternal) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(cachedResponse => {
         // إذا وجد استجابة في الكاش، قم بإرجاعها
         if (cachedResponse) {
+          // في الخلفية، قم بتحديث النسخة المخزنة إذا أمكن
+          // هذا يعمل على استراتيجية "stale-while-revalidate"
+          const fetchPromise = fetch(event.request)
+            .then(networkResponse => {
+              if (networkResponse && networkResponse.status === 200) {
+                const responseToCache = networkResponse.clone();
+                caches.open(CACHE_NAME)
+                  .then(cache => {
+                    cache.put(event.request, responseToCache);
+                  })
+                  .catch(err => console.error('خطأ في تحديث الكاش:', err));
+              }
+              return networkResponse;
+            })
+            .catch(() => {
+              // فشل الاتصال بالشبكة، الاستمرار بالنسخة المخزنة
+            });
+          
           return cachedResponse;
         }
         
@@ -50,7 +85,7 @@ self.addEventListener('fetch', event => {
         return fetch(event.request)
           .then(response => {
             // تخزين في الكاش فقط إذا كان طلب GET وناجح
-            if (!response || response.status !== 200 || response.type !== 'basic' || event.request.method !== 'GET') {
+            if (!response || response.status !== 200) {
               return response;
             }
 
@@ -60,17 +95,15 @@ self.addEventListener('fetch', event => {
               .then(cache => {
                 cache.put(event.request, responseToCache);
               })
-              .catch(error => {
-                console.error('فشل في تخزين الاستجابة في الكاش:', error);
-              });
+              .catch(err => console.error('خطأ في تخزين الاستجابة:', err));
 
             return response;
           })
           .catch(error => {
             console.error('فشل جلب البيانات من الشبكة:', error);
             
-            // يمكن إضافة استجابة احتياطية هنا لصفحات معينة
-            if (event.request.url.includes('html')) {
+            // إذا كان الطلب لصفحة HTML، ارجع الصفحة الرئيسية
+            if (event.request.headers.get('accept').includes('text/html')) {
               return caches.match('/index.html');
             }
             
@@ -102,7 +135,8 @@ self.addEventListener('activate', event => {
             console.log('حذف الكاش القديم:', cacheName);
             return caches.delete(cacheName);
           }
-        })
+          return null;
+        }).filter(Boolean)
       );
     })
   );
