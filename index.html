@@ -37,6 +37,61 @@
 </head>
 
 <body>
+    <div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-dark text-light">
+          <h4 class="mb-0 text-center">تطبيق Ai8V</h4>
+        </div>
+        <div class="card-body">
+          <div class="text-center mb-4" id="pwa-status">
+            <div class="spinner-border text-primary mb-3" role="status">
+              <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+            <p class="mb-0">جاري التحقق من توفر خدمة التطبيق...</p>
+          </div>
+          
+          <div class="alert alert-info d-none" id="online-status">
+            <div class="d-flex">
+              <div class="me-3">
+                <i class="bi bi-wifi fs-4"></i>
+              </div>
+              <div>
+                <h5 class="alert-heading">متصل بالإنترنت</h5>
+                <p class="mb-0">يمكنك استخدام التطبيق وتصفح المنتجات بسرعة</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="alert alert-warning d-none" id="offline-status">
+            <div class="d-flex">
+              <div class="me-3">
+                <i class="bi bi-wifi-off fs-4"></i>
+              </div>
+              <div>
+                <h5 class="alert-heading">غير متصل بالإنترنت</h5>
+                <p class="mb-0">أنت تستخدم النسخة المخزنة محليًا من التطبيق</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="text-center">
+            <button class="btn btn-primary d-none" id="install-button">
+              تثبيت التطبيق
+            </button>
+          </div>
+        </div>
+        <div class="card-footer bg-light">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted" id="cache-status">آخر تحديث: جاري التحقق...</span>
+            <button class="btn btn-sm btn-outline-secondary" id="update-button">تحديث التطبيق</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
     <script src="assets/bootstrap/js/bootstrap.min.js"></script>
     <script src="assets/js/script.js"></script>
 </body>
