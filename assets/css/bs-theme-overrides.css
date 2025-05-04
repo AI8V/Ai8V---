@@ -1,0 +1,8 @@
+:root, [data-bs-theme=light] {
+  --bs-body-font-family: 'Noto Sans Arabic', sans-serif;
+}
+
+[data-bs-theme=dark] {
+  --bs-body-font-family: 'Noto Sans Arabic', sans-serif;
+}
+
