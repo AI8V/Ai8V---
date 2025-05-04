@@ -16,8 +16,7 @@ const urlsToCache = [
   '/assets/img/android-chrome-192x192.png',
   '/assets/img/android-chrome-512x512.png',
   '/manifest.json',
-  '/robots.txt',
-  '/sitemap.xml'
+  '/assets/js/script.js'
 ];
 
 // تثبيت Service Worker وتخزين الملفات في الـ Cache
@@ -34,6 +33,9 @@ self.addEventListener('install', event => {
       .then(() => {
         console.log('تم تخزين جميع الموارد في الـ Cache');
         return self.skipWaiting(); // تخطي مرحلة الانتظار وتفعيل Service Worker فورًا
+      })
+      .catch(error => {
+        console.error('فشل في تخزين الملفات في الـ Cache:', error);
       })
   );
 });
@@ -60,11 +62,16 @@ self.addEventListener('activate', event => {
   );
 });
 
-// استراتيجية Cache First ثم Network
+// استراتيجية Cache First ثم Network - مع تحسينات للتعامل مع أنواع المحتوى المختلفة
 self.addEventListener('fetch', event => {
-  // الخروج فورًا إذا كان الطلب لملف robots.txt أو sitemap.xml
-  // هذا سيضمن أن هذه الملفات دائمًا تُجلب من الخادم وليس من الكاش
+  // التحقق من صلاحية الطلب
+  if (!event.request || !event.request.url) {
+    return;
+  }
+
   const url = new URL(event.request.url);
+  
+  // عدم التدخل مع بعض أنواع الطلبات المحددة
   if (url.pathname === '/robots.txt' || url.pathname === '/sitemap.xml') {
     return;
   }
@@ -75,63 +82,79 @@ self.addEventListener('fetch', event => {
       userAgent.includes('bingbot') || 
       userAgent.includes('YandexBot') || 
       userAgent.includes('Baiduspider')) {
-    // عدم التداخل مع طلبات روبوتات محركات البحث
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // إرجاع الملف من الـ Cache إذا وجد
-        if (response) {
-          return response;
-        }
+  // تجاهل طلبات عبر النطاقات المختلفة إلا إذا كانت مذكورة في قائمة الكاش
+  const isSameOrigin = url.origin === self.location.origin;
+  const isInCacheList = urlsToCache.some(cacheUrl => {
+    // تحويل نسبي URL إلى مطلق للمقارنة
+    const absoluteCacheUrl = new URL(cacheUrl, self.location.origin).href;
+    return absoluteCacheUrl === event.request.url;
+  });
 
-        // إذا لم يكن موجودًا في الـ Cache، فسنقوم بجلبه من الشبكة
-        return fetch(event.request)
-          .then(networkResponse => {
-            // التحقق من أن الاستجابة صالحة
-            if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+  // تعامل مع الطلبات التي هي من نفس النطاق أو مدرجة في قائمة الكاش
+  if (isSameOrigin || isInCacheList) {
+    event.respondWith(
+      caches.match(event.request)
+        .then(response => {
+          // إرجاع الملف من الـ Cache إذا وجد
+          if (response) {
+            return response;
+          }
+
+          // إذا لم يكن موجودًا في الـ Cache، فسنقوم بجلبه من الشبكة
+          return fetch(event.request)
+            .then(networkResponse => {
+              // التحقق من أن الاستجابة صالحة
+              if (!networkResponse || networkResponse.status !== 200) {
+                return networkResponse;
+              }
+
+              // نسخ الاستجابة لأن الـ body يمكن استخدامه مرة واحدة فقط
+              const responseToCache = networkResponse.clone();
+
+              // تخزين في الكاش فقط للطلبات من نفس الأصل أو المحددة في قائمة الكاش
+              if (isSameOrigin || isInCacheList) {
+                caches.open(CACHE_NAME)
+                  .then(cache => {
+                    cache.put(event.request, responseToCache);
+                  })
+                  .catch(error => {
+                    console.error('خطأ في تخزين الاستجابة في الكاش:', error);
+                  });
+              }
+
               return networkResponse;
-            }
-
-            // نسخ الاستجابة لأن الـ body يمكن استخدامه مرة واحدة فقط
-            const responseToCache = networkResponse.clone();
-
-            // إضافة الملف إلى الـ Cache
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
+            })
+            .catch(error => {
+              console.error('خطأ في جلب الملف من الشبكة:', error);
+              
+              // في حالة طلب صفحة HTML وعدم توفر اتصال، إرجاع الصفحة الرئيسية من الكاش
+              if (event.request.mode === 'navigate') {
+                return caches.match('/index.html');
+              }
+              
+              // إرجاع رسالة خطأ لأنواع الطلبات الأخرى
+              return new Response('حدث خطأ في الاتصال بالإنترنت', {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: new Headers({
+                  'Content-Type': 'text/plain; charset=UTF-8'
+                })
               });
-
-            return networkResponse;
-          });
-      })
-      .catch(() => {
-        // في حالة فشل الاتصال بالشبكة، يمكن إرجاع صفحة خطأ مخصصة أو صفحة دون اتصال
-        // للتبسيط، سنرجع إلى الصفحة الرئيسية إذا كان الطلب لصفحة HTML
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
-        
-        // في حالة طلب موارد أخرى، يمكن ترك الخطأ يحدث
-        return new Response('حدث خطأ في الاتصال بالإنترنت', {
-          status: 503,
-          statusText: 'Service Unavailable',
-          headers: new Headers({
-            'Content-Type': 'text/plain'
-          })
-        });
-      })
-  );
+            });
+        })
+    );
+  }
 });
 
 // التعامل مع إشعارات الدفع (Push Notifications)
 self.addEventListener('push', event => {
-  console.log('تم استلام إشعار:', event.data.text());
+  console.log('تم استلام إشعار:', event.data ? event.data.text() : 'بدون محتوى');
   
   const options = {
-    body: event.data.text(),
+    body: event.data ? event.data.text() : 'إشعار جديد',
     icon: '/assets/img/android-chrome-192x192.png',
     badge: '/assets/img/favicon-32x32.png',
     dir: 'rtl', // اتجاه النص من اليمين إلى اليسار
