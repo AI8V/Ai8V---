@@ -1,13 +1,14 @@
 const VERSION = 'v1.0.0';
 const CACHE = `ai8v-${VERSION}`;
 
-// القائمة الأساسية للملفات
+// القائمة الموحدة للملفات الأساسية
 const CORE = [
   '/',
   '/index.html',
   '/assets/bootstrap/css/bootstrap.min.css',
   '/assets/bootstrap/js/bootstrap.min.js',
   '/assets/css/bs-theme-overrides.css',
+  '/assets/js/script.js',
   '/assets/img/apple-touch-icon.png',
   '/assets/img/favicon-16x16.png',
   '/assets/img/favicon-16x16-dark.png',
@@ -18,15 +19,6 @@ const CORE = [
   '/manifest.json',
   '/robots.txt',
   '/sitemap.xml'
-];
-
-// القائمة الأساسية للملفات
-const CORE = [
-  '/',
-  '/index.html',
-  '/assets/bootstrap/css/bootstrap.min.css',
-  '/assets/css/bs-theme-overrides.css',
-  '/assets/js/script.js'
 ];
 
 // تثبيت
@@ -87,7 +79,7 @@ self.addEventListener('message', event => {
 self.addEventListener('fetch', e => {
   // فقط طلبات GET
   if (e.request.method !== 'GET') return;
-    // تجاهل الطلبات الخارجية أو من إضافات المتصفح
+  // تجاهل الطلبات الخارجية أو من إضافات المتصفح
   if (!e.request.url.startsWith(self.location.origin)) return;
 
   e.respondWith(
@@ -115,4 +107,3 @@ self.addEventListener('fetch', e => {
     })
   );
 });
-
