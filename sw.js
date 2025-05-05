@@ -1,5 +1,11 @@
-const VERSION = 'v1.0.0';
+// خطوة 1: دمج OneSignal مع Service Worker الخاص بك
+// ملف sw.js المعدل
+
+const VERSION = 'v1.0.1';
 const CACHE = `ai8v-${VERSION}`;
+
+// تضمين OneSignal Service Worker
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
 // القائمة الموحدة للملفات الأساسية
 const CORE = [
@@ -75,10 +81,14 @@ self.addEventListener('message', event => {
   }
 });
 
-// تعامل مع الطلبات
+// تعامل مع الطلبات - تجنب التعارض مع OneSignal
 self.addEventListener('fetch', e => {
   // فقط طلبات GET
   if (e.request.method !== 'GET') return;
+  
+  // تجاهل طلبات OneSignal
+  if (e.request.url.includes('onesignal.com')) return;
+  
   // تجاهل الطلبات الخارجية أو من إضافات المتصفح
   if (!e.request.url.startsWith(self.location.origin)) return;
 
