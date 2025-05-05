@@ -1,4 +1,5 @@
-const VERSION = 'v1.0.2';
+
+const VERSION = 'v1.0.3';
 const CACHE = `ai8v-${VERSION}`;
 
 // القائمة الموحدة للملفات الأساسية
@@ -79,10 +80,6 @@ self.addEventListener('message', event => {
 self.addEventListener('fetch', e => {
   // فقط طلبات GET
   if (e.request.method !== 'GET') return;
-  
-  // تجاهل طلبات OneSignal
-  if (e.request.url.includes('onesignal.com')) return;
-  
   // تجاهل الطلبات الخارجية أو من إضافات المتصفح
   if (!e.request.url.startsWith(self.location.origin)) return;
 
@@ -111,3 +108,4 @@ self.addEventListener('fetch', e => {
     })
   );
 });
+
