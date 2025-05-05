@@ -59,7 +59,6 @@ const addContentTypeHeader = response => {
       contentType = 'image/svg+xml';
     } else if (url.endsWith('.webp')) {
       contentType = 'image/webp';
-    }
     } else if (url.endsWith('.xml')) {
       contentType = 'application/rss+xml; charset=utf-8';  // << هنا الإضافة المهمة
   }
