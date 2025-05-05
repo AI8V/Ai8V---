@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Ai8V | توريد بطاطس وبصل طازج - وسيط منتجات زراعية</title>
     <meta name="theme-color" content="#000000">
-    <link rel="canonical" href="https://www.ai8v.com/">
-    <meta property="og:url" content="https://www.ai8v.com/">
+    <link rel="canonical" href="https://ai8v.com/">
+    <meta property="og:url" content="https://ai8v.com/">
     <meta http-equiv="Content-Language" content="ar">
     <meta name="language" content="Arabic">
     <meta property="og:type" content="website">
@@ -18,22 +18,29 @@
             "@context": "http://schema.org",
             "@type": "WebSite",
             "name": "Ai8V",
-            "url": "https://www.ai8v.com"
+            "url": "https://ai8v.com"
         }
     </script>
+    <!-- تكوين OneSignal المحدث -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-<script>
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  OneSignalDeferred.push(async function(OneSignal) {
-    await OneSignal.init({
-      appId: "43de9a9a-f37f-40b8-a1d8-30e3c88caa51",
-      safari_web_id: "web.onesignal.auto.092506a7-b452-4a06-a822-c1d343884087",
-      notifyButton: {
-        enable: true,
-      },
-    });
-  });
-</script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "43de9a9a-f37f-40b8-a1d8-30e3c88caa51",
+          safari_web_id: "web.onesignal.auto.092506a7-b452-4a06-a822-c1d343884087",
+          notifyButton: {
+            enable: true,
+          },
+          serviceWorkerParam: { scope: "/" },
+          serviceWorkerPath: "/sw.js",
+          allowLocalhostAsSecureOrigin: true,
+          // تحديد كلا النطاقين - مع وبدون www
+          subdomainName: "",
+          origin: window.location.origin,
+        });
+      });
+    </script>
     <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="assets/img/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16-dark.png" media="(prefers-color-scheme: dark)">
