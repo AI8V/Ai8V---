@@ -57,11 +57,11 @@ const addContentTypeHeader = response => {
       contentType = 'image/jpeg';
     } else if (url.endsWith('.svg')) {
       contentType = 'image/svg+xml';
-    } else if (url.endsWith('.webp')) {
+        } else if (url.endsWith('.webp')) {
       contentType = 'image/webp';
     } else if (url.endsWith('.xml')) {
-      contentType = 'application/rss+xml; charset=utf-8';  // << هنا الإضافة المهمة
-  }
+      contentType = 'application/xml; charset=utf-8';
+    }
     newHeaders.set('Content-Type', contentType);
   }
   return response.clone ? new Response(response.body, {
