@@ -1,5 +1,5 @@
 
-const VERSION = 'v1.0.3';
+const VERSION = 'v1.0.4';
 const CACHE = `ai8v-${VERSION}`;
 
 // القائمة الموحدة للملفات الأساسية
@@ -38,9 +38,12 @@ self.addEventListener('activate', e => {
 
 // إضافة رأس Content-Type لمنع مشاكل MIME
 const addContentTypeHeader = response => {
-  if (!response || !response.headers || response.type !== 'basic') return response;
+  if (!response || response.type !== 'basic') return response;
+  
   const url = response.url;
   const newHeaders = new Headers(response.headers);
+  
+  // تحقق مما إذا كان لدينا بالفعل Content-Type
   if (!newHeaders.has('Content-Type')) {
     let contentType = 'application/octet-stream'; // default fallback
     if (url.endsWith('.html') || url === '/' || url.endsWith('/')) {
@@ -57,18 +60,23 @@ const addContentTypeHeader = response => {
       contentType = 'image/jpeg';
     } else if (url.endsWith('.svg')) {
       contentType = 'image/svg+xml';
-        } else if (url.endsWith('.webp')) {
+    } else if (url.endsWith('.webp')) {
       contentType = 'image/webp';
     } else if (url.endsWith('.xml')) {
       contentType = 'application/xml; charset=utf-8';
+    } else if (url.endsWith('.rss')) {
+      contentType = 'application/rss+xml; charset=utf-8';
     }
+    
     newHeaders.set('Content-Type', contentType);
   }
-  return response.clone ? new Response(response.body, {
+  
+  // إنشاء استجابة جديدة مع الرأس المحدثة
+  return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
     headers: newHeaders
-  }) : response;
+  });
 };
 
 // التعامل مع الرسائل
@@ -78,12 +86,19 @@ self.addEventListener('message', event => {
   }
 });
 
+// تجاهل طلبات OneSignal
+const isOneSignalRequest = (url) => {
+  return url.includes('OneSignal') || url.includes('onesignal');
+};
+
 // تعامل مع الطلبات
 self.addEventListener('fetch', e => {
   // فقط طلبات GET
   if (e.request.method !== 'GET') return;
-  // تجاهل الطلبات الخارجية أو من إضافات المتصفح
-  if (!e.request.url.startsWith(self.location.origin)) return;
+  
+  // تجاهل الطلبات الخارجية أو من إضافات المتصفح أو OneSignal
+  const requestUrl = e.request.url;
+  if (!requestUrl.startsWith(self.location.origin) || isOneSignalRequest(requestUrl)) return;
 
   e.respondWith(
     caches.match(e.request).then(cached => {
@@ -102,7 +117,7 @@ self.addEventListener('fetch', e => {
         })
         .catch(() => {
           // إذا فشل وطُلب صفحة HTML، نُرجع صفحة البداية
-          if (e.request.headers.get('accept').includes('text/html')) {
+          if (e.request.headers.get('accept')?.includes('text/html')) {
             return caches.match('/');
           }
           return new Response('غير متصل', {status: 503});
@@ -110,4 +125,3 @@ self.addEventListener('fetch', e => {
     })
   );
 });
-
