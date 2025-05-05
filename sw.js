@@ -1,4 +1,5 @@
-const CACHE = 'ai8v-v1';
+const VERSION = 'v1.0.0';
+const CACHE = `ai8v-${VERSION}`;
 
 // القائمة الأساسية للملفات
 const CORE = [
@@ -19,6 +20,15 @@ const CORE = [
   '/sitemap.xml'
 ];
 
+// القائمة الأساسية للملفات
+const CORE = [
+  '/',
+  '/index.html',
+  '/assets/bootstrap/css/bootstrap.min.css',
+  '/assets/css/bs-theme-overrides.css',
+  '/assets/js/script.js'
+];
+
 // تثبيت
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -33,20 +43,32 @@ self.addEventListener('activate', e => {
   ));
 });
 
-// إضافة رأس لمنع مشكلة RSS Detection
+// إضافة رأس Content-Type لمنع مشاكل MIME
 const addContentTypeHeader = response => {
-  // إذا لم تكن هناك استجابة أو كانت غير قابلة للتعديل
   if (!response || !response.headers || response.type !== 'basic') return response;
-  
-  // إنشاء نسخة من الاستجابة مع رأس جديد
+  const url = response.url;
   const newHeaders = new Headers(response.headers);
   if (!newHeaders.has('Content-Type')) {
-    // تعيين نوع المحتوى للمستندات HTML
-    if (response.url.endsWith('.html') || response.url === '/' || response.url.endsWith('/')) {
-      newHeaders.set('Content-Type', 'text/html; charset=utf-8');
+    let contentType = 'application/octet-stream'; // default fallback
+    if (url.endsWith('.html') || url === '/' || url.endsWith('/')) {
+      contentType = 'text/html; charset=utf-8';
+    } else if (url.endsWith('.js')) {
+      contentType = 'application/javascript; charset=utf-8';
+    } else if (url.endsWith('.css')) {
+      contentType = 'text/css; charset=utf-8';
+    } else if (url.endsWith('.json')) {
+      contentType = 'application/json; charset=utf-8';
+    } else if (url.endsWith('.png')) {
+      contentType = 'image/png';
+    } else if (url.endsWith('.jpg') || url.endsWith('.jpeg')) {
+      contentType = 'image/jpeg';
+    } else if (url.endsWith('.svg')) {
+      contentType = 'image/svg+xml';
+    } else if (url.endsWith('.webp')) {
+      contentType = 'image/webp';
     }
+    newHeaders.set('Content-Type', contentType);
   }
-  
   return response.clone ? new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -54,10 +76,19 @@ const addContentTypeHeader = response => {
   }) : response;
 };
 
+// التعامل مع الرسائل
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // تعامل مع الطلبات
 self.addEventListener('fetch', e => {
   // فقط طلبات GET
   if (e.request.method !== 'GET') return;
+    // تجاهل الطلبات الخارجية أو من إضافات المتصفح
+  if (!e.request.url.startsWith(self.location.origin)) return;
 
   e.respondWith(
     caches.match(e.request).then(cached => {
@@ -75,7 +106,7 @@ self.addEventListener('fetch', e => {
           return addContentTypeHeader(response);
         })
         .catch(() => {
-          // إذا فشل ورُطب صفحة HTML، نُرجع صفحة البداية
+          // إذا فشل وطُلب صفحة HTML، نُرجع صفحة البداية
           if (e.request.headers.get('accept').includes('text/html')) {
             return caches.match('/');
           }
@@ -84,3 +115,4 @@ self.addEventListener('fetch', e => {
     })
   );
 });
+
