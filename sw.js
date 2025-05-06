@@ -1,5 +1,5 @@
 
-const VERSION = 'v1.0.4';
+const VERSION = 'v1.0.5';
 const CACHE = `ai8v-${VERSION}`;
 
 // القائمة الموحدة للملفات الأساسية
