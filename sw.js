@@ -96,9 +96,9 @@ self.addEventListener('fetch', e => {
   // فقط طلبات GET
   if (e.request.method !== 'GET') return;
   
-  // تجاهل الطلبات الخارجية أو من إضافات المتصفح أو OneSignal
+  // تجاهل الطلبات الخارجية أو من إضافات المتصفح إلا OneSignal
   const requestUrl = e.request.url;
-  if (!requestUrl.startsWith(self.location.origin) || isOneSignalRequest(requestUrl)) return;
+  if (!requestUrl.startsWith(self.location.origin) && !isOneSignalRequest(requestUrl)) return;
 
   e.respondWith(
     caches.match(e.request).then(cached => {
