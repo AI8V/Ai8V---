@@ -11,20 +11,37 @@ if ('serviceWorker' in navigator) {
 
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              newWorker.postMessage({ type: 'SKIP_WAITING' });
-            }
-          });
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          }
         });
       })
       .catch((error) => {
         console.log('❌ فشل تسجيل Service Worker:', error);
+        
+        // محاولة إعادة التسجيل مع مسار مختلف للتشخيص
+        if (location.hostname !== 'localhost' && location.protocol === 'https:') {
+          console.log('محاولة تسجيل Service Worker مع مسار مطلق...');
+          const swUrl = new URL('/sw.js', window.location.origin).href;
+          console.log('المسار المطلق:', swUrl);
+          
+          navigator.serviceWorker.register(swUrl)
+            .then(reg => console.log('✅ تم التسجيل بالمسار المطلق:', reg.scope))
+            .catch(err => console.log('❌ فشل التسجيل بالمسار المطلق:', err));
+        }
       });
 
     // إعادة تحميل الصفحة بعد التحديث
+    let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      window.location.reload();
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
     });
   });
 }
