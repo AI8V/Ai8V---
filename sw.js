@@ -19,8 +19,6 @@ const CORE = [
   '/assets/img/android-chrome-192x192.png',
   '/assets/img/android-chrome-512x512.png',
   '/manifest.json',
-  '/robots.txt',
-  '/sitemap.xml'
 ];
 
 // تثبيت
