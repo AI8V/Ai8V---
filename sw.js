@@ -1,6 +1,6 @@
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-const VERSION = 'v1.0.9';
+const VERSION = 'v1.0.10';
 const CACHE = `ai8v-${VERSION}`;
 
 // القائمة الموحدة للملفات الأساسية
@@ -21,106 +21,94 @@ const CORE = [
   '/manifest.json',
 ];
 
-// تثبيت
-self.addEventListener('install', e => {
+// حدث التثبيت - تخزين الملفات الأساسية
+self.addEventListener('install', (event) => {
+  // تخطي الانتظار للتنشيط الفوري
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)));
+  
+  // تخزين الملفات الأساسية
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(cache => {
+        return cache.addAll(CORE);
+      })
+      .catch(error => {
+        console.error('خطأ في تخزين الملفات الأساسية:', error);
+      })
+  );
 });
 
-// تنشيط
-self.addEventListener('activate', e => {
+// حدث التنشيط - إزالة التخزين المؤقت القديم
+self.addEventListener('activate', (event) => {
+  // المطالبة بأن يكون هذا الـ service worker هو المتحكم في العملاء
   self.clients.claim();
-  e.waitUntil(caches.keys().then(keys => 
-    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-  ));
+  
+  // إزالة التخزين المؤقت القديم
+  event.waitUntil(
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys
+          .filter(key => key !== CACHE && key.startsWith('ai8v-'))
+          .map(key => caches.delete(key))
+      );
+    })
+  );
 });
 
-// إضافة رأس Content-Type لمنع مشاكل MIME
-const addContentTypeHeader = response => {
-  if (!response || response.type !== 'basic') return response;
-  
-  const url = response.url;
-  const newHeaders = new Headers(response.headers);
-  
-  // تحقق مما إذا كان لدينا بالفعل Content-Type
-  if (!newHeaders.has('Content-Type')) {
-    let contentType = 'application/octet-stream'; // default fallback
-    if (url.endsWith('.html') || url === '/' || url.endsWith('/')) {
-      contentType = 'text/html; charset=utf-8';
-    } else if (url.endsWith('.js')) {
-      contentType = 'application/javascript; charset=utf-8';
-    } else if (url.endsWith('.css')) {
-      contentType = 'text/css; charset=utf-8';
-    } else if (url.endsWith('.json')) {
-      contentType = 'application/json; charset=utf-8';
-    } else if (url.endsWith('.png')) {
-      contentType = 'image/png';
-    } else if (url.endsWith('.jpg') || url.endsWith('.jpeg')) {
-      contentType = 'image/jpeg';
-    } else if (url.endsWith('.svg')) {
-      contentType = 'image/svg+xml';
-    } else if (url.endsWith('.webp')) {
-      contentType = 'image/webp';
-    } else if (url.endsWith('.xml')) {
-      contentType = 'application/xml; charset=utf-8';
-    } else if (url.endsWith('.rss')) {
-      contentType = 'application/rss+xml; charset=utf-8';
-    }
-    
-    newHeaders.set('Content-Type', contentType);
-  }
-  
-  // إنشاء استجابة جديدة مع الرأس المحدثة
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: newHeaders
-  });
-};
-
-// التعامل مع الرسائل
-self.addEventListener('message', event => {
+// حدث الرسائل - للتحديث
+self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
 
-// تجاهل طلبات OneSignal
-const isOneSignalRequest = (url) => {
-  return url.includes('OneSignal') || url.includes('onesignal');
-};
-
-// تعامل مع الطلبات
-self.addEventListener('fetch', e => {
+// حدث الطلبات - للتخزين المؤقت والعمل دون اتصال
+self.addEventListener('fetch', (event) => {
   // فقط طلبات GET
-  if (e.request.method !== 'GET') return;
+  if (event.request.method !== 'GET') return;
   
-  // تجاهل الطلبات الخارجية أو من إضافات المتصفح إلا OneSignal
-  const requestUrl = e.request.url;
-  if (!requestUrl.startsWith(self.location.origin) && !isOneSignalRequest(requestUrl)) return;
-
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      // إرجاع المُخزن إذا وُجد
-      if (cached) return addContentTypeHeader(cached);
-      
-      // محاولة الحصول من الشبكة
-      return fetch(e.request)
-        .then(response => {
-          // تخزين النسخة الجديدة إذا كانت صالحة
-          if (response && response.status === 200) {
-            const copy = response.clone();
-            caches.open(CACHE).then(cache => cache.put(e.request, copy));
-          }
-          return addContentTypeHeader(response);
-        })
-        .catch(() => {
-          // إذا فشل وطُلب صفحة HTML، نُرجع صفحة البداية
-          if (e.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/');
-          }
-          return new Response('غير متصل', {status: 503});
-        });
-    })
+  // تجاهل الطلبات الخارجية
+  if (!event.request.url.startsWith(self.location.origin) && 
+      !event.request.url.includes('onesignal') && 
+      !event.request.url.includes('OneSignal')) {
+    return;
+  }
+  
+  // استراتيجية التخزين المؤقت: محاولة من التخزين المؤقت أولاً، ثم الشبكة
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        // إرجاع النسخة المخزنة إذا وجدت
+        if (response) {
+          return response;
+        }
+        
+        // وإلا، احصل عليها من الشبكة
+        return fetch(event.request)
+          .then(networkResponse => {
+            // تخزين النسخة الجديدة إذا كانت صالحة
+            if (networkResponse && networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE)
+                .then(cache => {
+                  cache.put(event.request, responseToCache);
+                });
+            }
+            
+            return networkResponse;
+          })
+          .catch(() => {
+            // إذا طلب HTML، ارجع صفحة البداية
+            if (event.request.headers.get('accept').includes('text/html')) {
+              return caches.match('/');
+            }
+            
+            // وإلا، ارجع رسالة خطأ
+            return new Response('أنت غير متصل بالإنترنت.', {
+              status: 503,
+              headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+            });
+          });
+      })
   );
 });
