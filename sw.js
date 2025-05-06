@@ -1,4 +1,4 @@
-
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 const VERSION = 'v1.0.5';
 const CACHE = `ai8v-${VERSION}`;
 
