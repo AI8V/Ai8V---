@@ -21,6 +21,31 @@
             "url": "https://ai8v.com"
         }
     </script>
+<script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" defer></script>
+<script>
+  window.OneSignal = window.OneSignal || [];
+  OneSignal.push(function() {
+    OneSignal.init({
+      appId: "43de9a9a-f37f-40b8-a1d8-30e3c88caa51", // استبدل بمعرف التطبيق الخاص بك
+      notifyButton: {
+        enable: true,
+        position: "bottom-right",
+        showCredit: false,
+        text: {
+          'tip.state.unsubscribed': 'اشترك في الإشعارات',
+          'tip.state.subscribed': 'أنت مشترك في الإشعارات',
+          'tip.state.blocked': 'لقد حظرت الإشعارات',
+          // نصوص أخرى مترجمة للعربية...
+        }
+      },
+      // ترحيب بالمستخدم عند الاشتراك
+      welcomeNotification: {
+        title: "شكراً للاشتراك!",
+        message: "ستصلك الآن آخر العروض والمنتجات الجديدة!"
+      }
+    });
+  });
+</script>
     <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="assets/img/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16x16-dark.png" media="(prefers-color-scheme: dark)">
